@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Match Analyst</title>
+<meta name="theme-color" content="#0b1728">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<style>
+:root{--ink:#0b1728;--navy:#13233d;--gold:#e6b94f;--mute:#7a8aa3;--bg:#f3f6fa;--card:#fff;--green:#13865c;--red:#d65252;--line:#e1e7ef}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);padding-bottom:env(safe-area-inset-bottom)}
+header{background:var(--ink);color:#fff;padding:14px 16px;position:sticky;top:0;z-index:5}
+header h1{margin:0;font-size:18px}header small{color:var(--gold);font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+nav{display:flex;gap:6px;padding:10px 12px;background:#fff;border-bottom:1px solid var(--line);overflow-x:auto;position:sticky;top:64px;z-index:4}
+nav button{flex:none;border:0;background:#eef2f7;padding:9px 14px;border-radius:999px;font-weight:600;color:var(--navy);cursor:pointer}
+nav button.on{background:var(--navy);color:#fff}
+main{padding:14px;max-width:900px;margin:0 auto}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px;box-shadow:0 1px 2px rgba(11,23,40,.04)}
+h2{font-size:16px;margin:0 0 10px}
+label{display:block;font-size:12px;color:var(--mute);margin:8px 0 4px;text-transform:uppercase;letter-spacing:.04em}
+input,select,textarea{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font:inherit;background:#fff}
+.row{display:flex;gap:8px;flex-wrap:wrap}.row>*{flex:1;min-width:120px}
+.btn{border:0;background:var(--navy);color:#fff;padding:11px 16px;border-radius:10px;font-weight:700;cursor:pointer}
+.btn.gold{background:var(--gold);color:var(--ink)}.btn.ghost{background:#eef2f7;color:var(--navy)}.btn.bad{background:var(--red)}
+.clock{font-variant-numeric:tabular-nums;font-size:34px;font-weight:800;letter-spacing:.02em}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
+.tag{border:0;border-radius:12px;padding:14px 8px;font-weight:700;color:#fff;cursor:pointer;font-size:14px}
+.tag:active{transform:scale(.97)}
+.pick{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.pick button{border:2px solid transparent;background:#eef2f7;padding:8px 12px;border-radius:10px;cursor:pointer;font-weight:600}
+.pick button.on{border-color:var(--gold);background:#fff7e0}
+.pitch{width:100%;aspect-ratio:105/68;background:linear-gradient(#1f7a4d,#17633d);border-radius:12px;position:relative;cursor:crosshair;overflow:hidden;border:2px solid #fff}
+.pitch::before{content:"";position:absolute;inset:6%;border:2px solid rgba(255,255,255,.7);border-radius:4px}
+.pitch::after{content:"";position:absolute;left:50%;top:0;bottom:0;border-left:2px solid rgba(255,255,255,.7)}
+.dot{position:absolute;width:12px;height:12px;border-radius:50%;background:var(--gold);transform:translate(-50%,-50%);border:2px solid #fff}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line)}
+th{font-size:12px;color:var(--mute);text-transform:uppercase;letter-spacing:.04em}
+.ev{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
+.badge{padding:4px 9px;border-radius:999px;color:#fff;font-size:12px;font-weight:700;white-space:nowrap}
+.muted{color:var(--mute);font-size:13px}
+.del{background:none;border:0;color:var(--red);cursor:pointer;font-weight:700;padding:4px}
+.hidden{display:none}
+.bars div{display:flex;align-items:center;gap:8px;margin:6px 0;font-size:13px}
+.bars span.lbl{width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bars i{display:block;height:12px;border-radius:6px;background:var(--gold)}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:999px;opacity:0;transition:opacity .25s;pointer-events:none;font-size:14px}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+<header><small>Match Analyst</small><h1 id="matchTitle">No match selected</h1></header>
+<nav>
+  <button data-tab="match" class="on">Live</button>
+  <button data-tab="setup">Match &amp; squad</button>
+  <button data-tab="events">Events</button>
+  <button data-tab="report">Half-time report</button>
+  <button data-tab="export">Export</button>
+</nav>
+<main>
+  <!-- LIVE -->
+  <section id="tab-match">
+    <div class="card">
+      <div class="row" style="align-items:center">
+        <div><div class="muted" id="periodLabel">First half</div><div class="clock" id="clock">00:00</div></div>
+        <div style="flex:none;display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn" id="startBtn">Start</button>
+          <button class="btn ghost" id="periodBtn">Half-time</button>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>1. Choose the player</h2>
+      <div class="pick" id="playerPick"></div>
+      <h2>2. Choose the event</h2>
+      <div class="grid" id="tagGrid"></div>
+      <h2 style="margin-top:14px">3. Pitch position (optional)</h2>
+      <div class="pitch" id="pitch"></div>
+      <div class="muted" style="margin-top:6px">Tap the pitch to mark where the event happened (left = own goal, right = opponent's goal). Position resets after each tag.</div>
+      <label>Note (optional)</label>
+      <input id="note" placeholder="e.g. late challenge, left unmarked">
+    </div>
+    <div class="card">
+      <h2>Last events</h2>
+      <div id="recent"></div>
+    </div>
+  </section>
+
+  <!-- SETUP -->
+  <section id="tab-setup" class="hidden">
+    <div class="card">
+      <h2>Match</h2>
+      <div class="row">
+        <div><label>Home team</label><input id="homeTeam" placeholder="Home team"></div>
+        <div><label>Away team</label><input id="awayTeam" placeholder="Away team"></div>
+      </div>
+      <div class="row">
+        <div><label>Date</label><input id="matchDate" type="date"></div>
+        <div><label>Analyst</label><input id="analyst" placeholder="Your name"></div>
+      </div>
+      <label>Tracked team</label>
+      <select id="trackTeam"></select>
+      <div style="margin-top:12px" class="row">
+        <button class="btn gold" id="saveMatch">Save match</button>
+        <button class="btn bad" id="newMatch">New match (clears events)</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Squad (tracked team)</h2>
+      <div class="row">
+        <div><label>Shirt no.</label><input id="pNo" type="number" min="1" max="99"></div>
+        <div style="flex:2"><label>Name</label><input id="pName" placeholder="Player name"></div>
+        <div><label>Position</label><select id="pPos"><option>GK</option><option>DEF</option><option>MID</option><option>FWD</option></select></div>
+      </div>
+      <div style="margin-top:10px"><button class="btn" id="addPlayer">Add player</button></div>
+      <div id="squadList" style="margin-top:12px"></div>
+    </div>
+  </section>
+
+  <!-- EVENTS -->
+  <section id="tab-events" class="hidden">
+    <div class="card">
+      <h2>All events</h2>
+      <div class="muted" style="margin-bottom:8px">Each event is timestamped and records who tagged it. Delete only to correct a mistake.</div>
+      <div id="allEvents"></div>
+    </div>
+  </section>
+
+  <!-- REPORT -->
+  <section id="tab-report" class="hidden">
+    <div class="card">
+      <h2>Half-time summary</h2>
+      <div id="summaryStats" class="grid" style="margin-bottom:12px"></div>
+      <h2>Errors and lapses by player</h2>
+      <div id="errorBars" class="bars"></div>
+      <h2 style="margin-top:14px">Key moments</h2>
+      <div id="keyMoments"></div>
+    </div>
+  </section>
+
+  <!-- EXPORT -->
+  <section id="tab-export" class="hidden">
+    <div class="card">
+      <h2>Export</h2>
+      <div class="row">
+        <button class="btn" id="exportCsv">Download events (CSV)</button>
+        <button class="btn ghost" id="exportJson">Download backup (JSON)</button>
+      </div>
+      <label>Restore from backup</label>
+      <input type="file" id="importFile" accept="application/json">
+      <div class="muted" style="margin-top:10px">Data is stored only on this device. Export a backup regularly.</div>
+    </div>
+  </section>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+const KEY='match-analyst-v1';
+const EVENTS=[
+  {k:'pass',label:'Pass',c:'#2a6fdb'},{k:'tackle',label:'Tackle',c:'#13865c'},{k:'interception',label:'Interception',c:'#0f7f8c'},
+  {k:'shot',label:'Shot',c:'#7b4fd6'},{k:'goal',label:'Goal',c:'#e6b94f'},{k:'assist',label:'Assist',c:'#c08a1e'},
+  {k:'foul',label:'Foul',c:'#8a6d3b'},{k:'card',label:'Card',c:'#e0a800'},
+  {k:'mistake',label:'Mistake',c:'#d65252',err:true},{k:'lapse',label:'Lapse in concentration',c:'#c2410c',err:true},
+  {k:'positioning',label:'Positioning error',c:'#b91c1c',err:true},{k:'key',label:'Key moment',c:'#0b1728'}
+];
+let S={match:{homeTeam:'',awayTeam:'',matchDate:'',analyst:'',trackTeam:'home'},players:[],events:[],clock:{running:false,elapsed:0,startedAt:0,period:1},selPlayer:null,pos:null};
+
+function load(){try{const r=localStorage.getItem(KEY);if(r)S=Object.assign(S,JSON.parse(r));}catch(e){}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){toast('Could not save on this device')}}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),1800)}
+function ev(k){return EVENTS.find(e=>e.k===k)}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+
+function elapsedNow(){const c=S.clock;return c.elapsed+(c.running?(Date.now()-c.startedAt)/1000:0)}
+function fmt(sec){sec=Math.floor(sec);const m=Math.floor(sec/60),s=sec%60;return String(m).padStart(2,'0')+':'+String(s).padStart(2,'0')}
+function matchMinute(){const p2=S.clock.period===2?45*60:0;return fmt(elapsedNow()+p2)}
+
+// ---- tabs
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));
+  ['match','setup','events','report','export'].forEach(t=>document.getElementById('tab-'+t).classList.toggle('hidden',t!==b.dataset.tab));
+  renderAll();
+});
+
+// ---- clock
+document.getElementById('startBtn').onclick=()=>{
+  const c=S.clock;
+  if(c.running){c.elapsed=elapsedNow();c.running=false;document.getElementById('startBtn').textContent='Resume';}
+  else{c.startedAt=Date.now();c.running=true;document.getElementById('startBtn').textContent='Pause';}
+  save();
+};
+document.getElementById('periodBtn').onclick=()=>{
+  const c=S.clock;
+  if(c.period===1){c.elapsed=elapsedNow();c.running=false;c.period=2;c.elapsed=0;
+    addEvent('key','Half-time');toast('Half-time recorded');}
+  else{toast('Already in second half')}
+  document.getElementById('startBtn').textContent='Start';save();renderClock();
+};
+function renderClock(){document.getElementById('clock').textContent=matchMinute();document.getElementById('periodLabel').textContent=S.clock.period===1?'First half':'Second half';}
+setInterval(()=>{if(S.clock.running)renderClock()},500);
+
+// ---- players
+function trackedPlayers(){return S.players.filter(p=>p.team===S.match.trackTeam)}
+function renderPlayers(){
+  const tp=trackedPlayers();
+  const pick=document.getElementById('playerPick');
+  pick.innerHTML=tp.length?tp.map(p=>`<button data-id="${p.id}" class="${S.selPlayer===p.id?'on':''}">#${esc(p.no)} ${esc(p.name)}</button>`).join(''):'<span class="muted">Add players in Match &amp; squad first.</span>';
+  pick.querySelectorAll('button').forEach(b=>b.onclick=()=>{S.selPlayer=b.dataset.id;save();renderPlayers();});
+  const sq=document.getElementById('squadList');
+  sq.innerHTML=tp.length?`<table><tr><th>No.</th><th>Name</th><th>Pos</th><th></th></tr>${tp.sort((a,b)=>a.no-b.no).map(p=>`<tr><td>${esc(p.no)}</td><td>${esc(p.name)}</td><td>${esc(p.pos)}</td><td><button class="del" data-del="${p.id}">Remove</button></td></tr>`).join('')}</table>`:'<span class="muted">No players yet.</span>';
+  sq.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{if(!confirm('Remove this player? Their events stay in the log.'))return;S.players=S.players.filter(p=>p.id!==b.dataset.del);save();renderAll();});
+  const sel=document.getElementById('trackTeam');
+  sel.innerHTML=`<option value="home">${esc(S.match.homeTeam||'Home')}</option><option value="away">${esc(S.match.awayTeam||'Away')}</option>`;
+  sel.value=S.match.trackTeam;
+}
+document.getElementById('addPlayer').onclick=()=>{
+  const no=parseInt(document.getElementById('pNo').value,10),name=document.getElementById('pName').value.trim(),pos=document.getElementById('pPos').value;
+  if(!no||!name){toast('Enter shirt number and name');return}
+  if(trackedPlayers().some(p=>p.no===no)){toast('That shirt number is already used');return}
+  S.players.push({id:uid(),team:S.match.trackTeam,no,name,pos});
+  document.getElementById('pNo').value='';document.getElementById('pName').value='';
+  save();renderAll();toast('Player added');
+};
+document.getElementById('trackTeam').onchange=e=>{S.match.trackTeam=e.target.value;S.selPlayer=null;save();renderAll();};
+
+// ---- match setup
+function renderMatchForm(){
+  document.getElementById('homeTeam').value=S.match.homeTeam;document.getElementById('awayTeam').value=S.match.awayTeam;
+  document.getElementById('matchDate').value=S.match.matchDate;document.getElementById('analyst').value=S.match.analyst;
+  document.getElementById('matchTitle').textContent=(S.match.homeTeam||'Home')+' vs '+(S.match.awayTeam||'Away');
+}
+document.getElementById('saveMatch').onclick=()=>{
+  S.match.homeTeam=document.getElementById('homeTeam').value.trim();S.match.awayTeam=document.getElementById('awayTeam').value.trim();
+  S.match.matchDate=document.getElementById('matchDate').value;S.match.analyst=document.getElementById('analyst').value.trim();
+  save();renderAll();toast('Match saved');
+};
+document.getElementById('newMatch').onclick=()=>{
+  if(!confirm('Start a new match? This clears events and the clock. Export a backup first if you need it.'))return;
+  S={match:{homeTeam:'',awayTeam:'',matchDate:'',analyst:S.match.analyst,trackTeam:'home'},players:[],events:[],clock:{running:false,elapsed:0,startedAt:0,period:1},selPlayer:null,pos:null};
+  document.getElementById('startBtn').textContent='Start';save();renderAll();
+};
+
+// ---- tagging
+function addEvent(kind,label,extra={}){
+  const p=S.players.find(x=>x.id===(extra.player||S.selPlayer));
+  S.events.push(Object.assign({id:uid(),kind,label,player:p?p.id:null,team:p?p.team:null,minute:matchMinute(),period:S.clock.period,
+    at:new Date().toISOString(),by:S.match.analyst||'Analyst',note:document.getElementById('note')?document.getElementById('note').value.trim():'',pos:S.pos},extra));
+  save();
+}
+function renderTags(){
+  const g=document.getElementById('tagGrid');
+  g.innerHTML=EVENTS.map(e=>`<button class="tag" data-k="${e.k}" style="background:${e.c}">${esc(e.label)}</button>`).join('');
+  g.querySelectorAll('button').forEach(b=>b.onclick=()=>{
+    if(!S.selPlayer&&b.dataset.k!=='key'){toast('Choose a player first');return}
+    const e=ev(b.dataset.k);addEvent(e.k,e.label);
+    S.pos=null;document.getElementById('note').value='';
+    renderPitch();renderRecent();
+    toast(e.label+' recorded');
+    if(navigator.vibrate)navigator.vibrate(12);
+  });
+}
+function renderPitch(){
+  const p=document.getElementById('pitch');
+  p.innerHTML=S.pos?`<div class="dot" style="left:${S.pos.x}%;top:${S.pos.y}%"></div>`:'';
+}
+document.getElementById('pitch').addEventListener('click',e=>{
+  const r=e.currentTarget.getBoundingClientRect();
+  S.pos={x:Math.round((e.clientX-r.left)/r.width*1000)/10,y:Math.round((e.clientY-r.top)/r.height*1000)/10};
+  renderPitch();
+});
+function describe(e){
+  const p=S.players.find(x=>x.id===e.player);
+  return (p?`#${p.no} ${p.name}`:'Team')+(e.note?' · '+e.note:'');
+}
+function renderRecent(){
+  const list=S.events.slice(-8).reverse();
+  document.getElementById('recent').innerHTML=list.length?list.map(evRow).join(''):'<span class="muted">No events yet.</span>';
+}
+function evRow(e){
+  const k=ev(e.kind)||{c:'#444'};
+  return `<div class="ev"><span class="badge" style="background:${k.c}">${esc(e.minute)}</span><div style="flex:1"><b>${esc(e.label)}</b><div class="muted">${esc(describe(e))}</div></div></div>`;
+}
+function renderAllEvents(){
+  const list=S.events.slice().reverse();
+  document.getElementById('allEvents').innerHTML=list.length?list.map(e=>evRow(e)+`<button class="del" data-del="${e.id}">Delete</button>`).join(''):'<span class="muted">No events recorded.</span>';
+  document.querySelectorAll('#allEvents [data-del]').forEach(b=>b.onclick=()=>{if(!confirm('Delete this event? The deletion will be logged.'))return;S.events=S.events.filter(x=>x.id!==b.dataset.del);save();renderAll();toast('Event deleted');});
+}
+
+// ---- report
+function renderReport(){
+  const ev_=S.events;
+  const count=k=>ev_.filter(e=>e.kind===k).length;
+  const errs=ev_.filter(e=>ev(e.kind)&&ev(e.kind).err);
+  const stats=[['Events',ev_.length],['Passes',count('pass')],['Tackles',count('tackle')],['Errors and lapses',errs.length],['Goals',count('goal')],['Key moments',count('key')]];
+  document.getElementById('summaryStats').innerHTML=stats.map(([a,b])=>`<div class="card" style="margin:0;text-align:center"><div class="clock" style="font-size:26px">${b}</div><div class="muted">${a}</div></div>`).join('');
+  const byP={};
+  errs.forEach(e=>{const p=S.players.find(x=>x.id===e.player);const n=p?`#${p.no} ${p.name}`:'Unassigned';byP[n]=(byP[n]||0)+1;});
+  const entries=Object.entries(byP).sort((a,b)=>b[1]-a[1]);
+  const max=entries.length?entries[0][1]:1;
+  document.getElementById('errorBars').innerHTML=entries.length?entries.map(([n,v])=>`<div><span class="lbl">${esc(n)}</span><i style="width:${Math.round(v/max*60)}%"></i><b>${v}</b></div>`).join(''):'<span class="muted">No errors or lapses recorded yet.</span>';
+  const keys=ev_.filter(e=>['goal','key','card','mistake','positioning'].includes(e.kind));
+  document.getElementById('keyMoments').innerHTML=keys.length?keys.map(evRow).join(''):'<span class="muted">No key moments recorded yet.</span>';
+}
+
+// ---- export
+function download(name,mime,text){const b=new Blob([text],{type:mime});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+document.getElementById('exportCsv').onclick=()=>{
+  const rows=[['minute','period','player_no','player_name','team','event','note','position_x','position_y','recorded_by','recorded_at']];
+  S.events.forEach(e=>{const p=S.players.find(x=>x.id===e.player);rows.push([e.minute,e.period,p?p.no:'',p?p.name:'',e.team||'',e.label,e.note||'',e.pos?e.pos.x:'',e.pos?e.pos.y:'',e.by,e.at])});
+  const csv=rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
+  download('match-events.csv','text/csv',csv);
+};
+document.getElementById('exportJson').onclick=()=>download('match-backup.json','application/json',JSON.stringify(S,null,2));
+document.getElementById('importFile').onchange=async e=>{
+  const f=e.target.files[0];if(!f)return;
+  try{const data=JSON.parse(await f.text());if(!data.events||!data.players||!data.match)throw 0;S=Object.assign(S,data);save();renderAll();toast('Backup restored')}
+  catch(err){toast('That file is not a valid backup')}
+};
+
+function renderAll(){renderMatchForm();renderPlayers();renderTags();renderPitch();renderRecent();renderClock();renderAllEvents();renderReport();document.getElementById('startBtn').textContent=S.clock.running?'Pause':(elapsedNow()>0?'Resume':'Start');}
+load();renderAll();
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js').catch(()=>{}))}
+</script>
+</body>
+</html>
